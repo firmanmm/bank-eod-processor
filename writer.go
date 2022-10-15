@@ -8,12 +8,16 @@ import (
 	"github.com/firmanmm/bank-eod-processor/pipeline"
 )
 
+// Writer represent writer for pipeline executor.
+// Writer is the final stage of the pipeline used
+// to convert all the processed value in to the CSV slice representation.
 type Writer struct {
 	*pipeline.WorkerPool
 
 	waitGroup *sync.WaitGroup
 }
 
+// NewWriter return a new writer for pipeline execution.
 func NewWriter(waitGroup *sync.WaitGroup) *Writer {
 	writer := &Writer{
 		waitGroup: waitGroup,
@@ -23,6 +27,8 @@ func NewWriter(waitGroup *sync.WaitGroup) *Writer {
 	return writer
 }
 
+// Execute will process current data in the pipeline stage.
+// In this case will format the data into CSV slice.
 func (w *Writer) Execute(workerID int, data *pipeline.EODRowData) {
 	data.FinishChannel = nil
 	if data.Error != nil {
@@ -33,12 +39,12 @@ func (w *Writer) Execute(workerID int, data *pipeline.EODRowData) {
 			errorIdx = int(afterEodHeaderIdxNo2AThread)
 		} else if data.ThreadNo2B == 0 {
 			errorIdx = int(afterEodHeaderIdxNo2BThread)
-		} else if data.ThreadNo3 == 0 {
+		} else {
 			errorIdx = int(afterEodHeaderIdxNo3Thread)
 		}
-		data.OuputRow[errorIdx] = data.Error.Error()
+		data.OutputRow[errorIdx] = data.Error.Error()
 	} else {
-		outputRow := data.OuputRow
+		outputRow := data.OutputRow
 		outputRow[afterEodHeaderIdxBalanced] = strconv.Itoa(data.Balanced)
 		outputRow[afterEodHeaderIdxAverageBalanced] = strconv.Itoa(data.AverageBalanced)
 		outputRow[afterEodHeaderIdxFreeTransfer] = strconv.Itoa(data.FreeTransfer)

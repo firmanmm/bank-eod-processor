@@ -53,10 +53,20 @@ var (
 	ErrInvalidHeader     = errors.New("invalid header provided")
 )
 
+// EODProcessor represent struct can process EOD operation.
 type EODProcessor struct {
 	pipeline pipeline.IPipeline
 }
 
+// NewEODProcessor will return a new EODProcessor to process data given it's pipeline executor.
+func NewEODProcessor(pipeline pipeline.IPipeline) *EODProcessor {
+	return &EODProcessor{
+		pipeline: pipeline,
+	}
+}
+
+// Process will process from given input and output file name.
+// Will also write the result on the output file.
 func (e *EODProcessor) Process(ctx context.Context, inputFileName, outputFileName string) error {
 	result, err := e.ProcessFile(ctx, inputFileName, outputFileName)
 	if err != nil {
@@ -71,6 +81,11 @@ func (e *EODProcessor) Process(ctx context.Context, inputFileName, outputFileNam
 	return writer.WriteAll(result)
 }
 
+// ProcessFile will read from given input file name and output template file name.
+// Will read the input and output as CSV file.
+// If output file is not found then it will assume that the template is empty will treat it as empty slice.
+// Will return slice resulted from the operation that can be treated as CSV.
+// Will return nil slice and an error on fail.
 func (e *EODProcessor) ProcessFile(ctx context.Context, inputFileName, outputTemplateFileName string) ([][]string, error) {
 	inputHandle, err := os.Open(inputFileName)
 	if err != nil {
@@ -109,6 +124,9 @@ func (e *EODProcessor) ProcessFile(ctx context.Context, inputFileName, outputTem
 	return e.ProcessSlice(ctx, inputRows, outputRows)
 }
 
+// ProcessSlice will process given slices that can be treated as CSV given it's input and output rows.
+// Will return updated output rows with any addition if necessary.
+// Will return nil slice and an error on fail.
 func (e *EODProcessor) ProcessSlice(ctx context.Context, inputRows, outputRows [][]string) ([][]string, error) {
 	outputIDMap, outputRows, err := e.preProcessRows(ctx, inputRows, outputRows)
 	if err != nil {
@@ -119,10 +137,11 @@ func (e *EODProcessor) ProcessSlice(ctx context.Context, inputRows, outputRows [
 	writer := NewWriter(waitGroup)
 	waitGroup.Add(len(inputRows) - 1)
 	channel := e.pipeline.Channel()
-	for _, row := range inputRows[1:] {
+	for idx, row := range inputRows[1:] {
 		channel <- &pipeline.EODRowData{
+			Index:         idx,
 			InputRow:      row,
-			OuputRow:      outputRows[outputIDMap[row[0]]],
+			OutputRow:     outputRows[outputIDMap[row[0]]],
 			FinishChannel: writer.Channel(),
 		}
 	}
@@ -130,8 +149,11 @@ func (e *EODProcessor) ProcessSlice(ctx context.Context, inputRows, outputRows [
 	return outputRows, nil
 }
 
+// preProcessRows will perform rows preprocessing to fill missing output before being processed.
+// Will also peform validation to prevent executing on bad data.
+// Will return map indicating the id to row index and updated output rows on fixed data.
+// Will return nil map and slice and an error on fail.
 func (e *EODProcessor) preProcessRows(ctx context.Context, inputRows, outputRows [][]string) (map[string]int, [][]string, error) {
-
 	// Validate rows length
 	if len(inputRows) == 0 {
 		return nil, nil, ErrInvalidInputRows
@@ -185,6 +207,8 @@ func (e *EODProcessor) preProcessRows(ctx context.Context, inputRows, outputRows
 	return outputIDRowMap, outputRows, nil
 }
 
+// validateHeaders will perform header validation against given columns.
+// Will return error when it doesn't match required headers.
 func (e *EODProcessor) validateHeaders(headers []string, columns []string) error {
 	if len(columns) < len(headers) {
 		return ErrInvalidHeader
@@ -195,10 +219,4 @@ func (e *EODProcessor) validateHeaders(headers []string, columns []string) error
 		}
 	}
 	return nil
-}
-
-func NewEODProcessor(pipeline pipeline.IPipeline) *EODProcessor {
-	return &EODProcessor{
-		pipeline: pipeline,
-	}
 }

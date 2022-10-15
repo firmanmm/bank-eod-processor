@@ -7,11 +7,15 @@ import (
 	"github.com/firmanmm/bank-eod-processor/pipeline"
 )
 
+// Parser represent CSV Parser pipeline for EOD operation.
+// Will read from input row in the pipeline and write it as parsed value.
+// Will return error and terminate pipeline for current flow if encounter error.
 type Parser struct {
 	*pipeline.WorkerPool
 	next chan<- *pipeline.EODRowData
 }
 
+// NewParser will return a new Parser.
 func NewParser(next chan<- *pipeline.EODRowData) *Parser {
 	parser := &Parser{
 		next: next,
@@ -21,6 +25,9 @@ func NewParser(next chan<- *pipeline.EODRowData) *Parser {
 	return parser
 }
 
+// Execute will process current data in the pipeline stage.
+// In this case will parse and set the parsed data into the pipeline for further
+// operation
 func (p *Parser) Execute(workerID int, data *pipeline.EODRowData) {
 	inputRow := data.InputRow
 	balanced, err := strconv.Atoi(inputRow[beforeEodHeaderIdxBalanced])

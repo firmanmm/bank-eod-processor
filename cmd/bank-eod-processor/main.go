@@ -23,6 +23,7 @@ func main() {
 	if len(input) == 0 {
 		log.Fatalln("Input can't be empty")
 	}
+	// output is optional and will default output name if not provided.
 	if len(output) == 0 {
 		output = defaultOutputFile
 	}
